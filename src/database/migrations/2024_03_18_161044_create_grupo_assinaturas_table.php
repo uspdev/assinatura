@@ -15,12 +15,13 @@ class CreateGrupoAssinaturasTable extends Migration
     {
         Schema::create('grupo_assinaturas', function (Blueprint $table) {
             $table->id();
-            $table->tinyText('assinantes');
+            $table->unsignedBigInteger('arquivo_id');
+            $table->unsignedBigInteger('assinante_id');
             $table->timestamps();
-        });
 
-        Schema::table('assinaturas', function (Blueprint $table) {
-            $table->foreign('grupo_assinatura_id')->references('id')->on('grupo_assinaturas');
+            $table->foreign('arquivo_id')->references('id')->on('arquivos');
+            $table->foreign('assinante_id')->references('id')->on('assinantes');
+            $table->unique(['arquivo_id','assinante_id']);
         });
     }
 

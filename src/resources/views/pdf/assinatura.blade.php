@@ -1,4 +1,2 @@
-<p>Este documento foi assinado de forma eletrônica e sua autenticidade pode ser verificada através do código {{ $hash }} no seguinte link: 
-    <a href=''></a></p>
-
-@include("assinatura::pdf._partials.linha-assinatura")
+<p>Este documento foi assinado de forma eletrônica e sua autenticidade pode ser verificada através do código {{ $codigo_validacao }} no seguinte link: 
+    <a href=''></a> {{ env('APP_URL') }} </p>
