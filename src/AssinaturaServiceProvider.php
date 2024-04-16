@@ -5,7 +5,9 @@ namespace Uspdev\Assinatura;
 use Illuminate\Support\ServiceProvider;
 
 use Uspdev\Assinatura\Models\Assinatura;
+use Uspdev\Assinatura\Models\Arquivo;
 use Uspdev\Assinatura\Observers\AssinaturaObserver;
+use Uspdev\Assinatura\Observers\ArquivoObserver;
 
 class AssinaturaServiceProvider extends ServiceProvider {
     public function boot()
@@ -18,6 +20,7 @@ class AssinaturaServiceProvider extends ServiceProvider {
         //$this->loadRoutesFrom(__DIR__.'/routes/web.php');
 
         Assinatura::observe(AssinaturaObserver::class);
+        Arquivo::observe(ArquivoObserver::class);
 
     }
     
