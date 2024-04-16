@@ -6,24 +6,24 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
-use Uspdev\Assinatura\Models\Assinantes;
+use Uspdev\Assinatura\Models\Assinatura;
 
 class NotificacaoAssinatura extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $assinante;
-    public $hash;
+    public $assinatura;
+    public $mensagem;
 
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct(Assinantes $assinante,$hash)
+    public function __construct(Assinatura $assinatura, $mensagem)
     {
-        $this->assinante = $assinante;
-        $this->hash = $hash;
+        $this->assinatura = $assinatura;
+        $this->mensagem = $mensagem;
     }
 
     /**

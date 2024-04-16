@@ -1,9 +1,7 @@
 @component('mail::message')
-# Prezado {{ $assinante->nome }}
+# Prezado {{ $assinatura->nome }}
 
-Sua assinatura precisa ser confirmada através do link <a href="{{ env('APP_URL') }}">LINK</a>
-
-Digite o seguinte código: {{ $hash }}
+{{ $mensagem }}
 
 @component('mail::button', ['url' => env('APP_URL') ])
 Confirmar Assinatura

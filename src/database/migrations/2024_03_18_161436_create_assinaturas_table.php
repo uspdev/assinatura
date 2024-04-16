@@ -15,16 +15,18 @@ class CreateAssinaturasTable extends Migration
     {
         Schema::create('assinaturas', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('grupo_assinaturas_id');
-            $table->string('pathArquivoOriginal',100);
-            $table->string('pathArquivoAssinado',100)->nullable();
-            $table->string('codigoValidacao',20);
-            $table->tinyText('hash');
-            $table->datetime('dataAssinatura')->nullable();
-            $table->enum('confirmEmail',['S','N','NÃO SE APLICA'])->default('N');
+            $table->unsignedBigInteger('arquivo_id');
+            $table->string('nome',100);
+            $table->string('email',100);
+            $table->bigInteger('codpes')->nullable();
+            $table->integer('ordem_assinatura');
+            $table->string('codigo_validacao',20)->nullable();
+            $table->date('data_assinatura')->nullable();
+            $table->tinyText('hash')->nullable();
+            $table->string('path_arquivo_assinado',100)->nullable();
             $table->timestamps();
 
-            $table->foreign('grupo_assinaturas_id')->references('id')->on('grupo_assinaturas');
+            $table->foreign('arquivo_id')->references('id')->on('arquivos');
         });
     }
 
@@ -36,7 +38,7 @@ class CreateAssinaturasTable extends Migration
     public function down()
     {
         Schema::disableForeignKeyConstraints();
-        Schema::dropIfExists('assinaturas');
+        Schema::dropIfExists('usp_assinaturas');
         Schema::enableForeignKeyConstraints();
     }
 }

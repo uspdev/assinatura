@@ -2,24 +2,21 @@
 <?php
 use Illuminate\Support\Facades\Route;
 
-Route::get('assinatura/autenticacao/',[Uspdev\Assinatura\Http\Controllers\AssinaturaChecker::class,'autenticaAssinatura'])->name('assinatura.autenticacao');
-Route::post('assinatura/checkassinatura',[Uspdev\Assinatura\Http\Controllers\AssinaturaChecker::class,'checkAssinatura'])->name('assinatura.checkassinatura');
-Route::get('assinatura/formulario-assinatura',[Uspdev\Assinatura\Http\Controllers\AssinaturaChecker::class,'formCheckAssinatura'])->name('assinatura.formulario');
+Route::get('assinatura/arquivo/{id}',[Uspdev\Assinatura\Http\Controllers\ArquivosController::class,'show'])->name('assinatura.arquivo.original');
+Route::get('assinatura/arquivoAssinado/{idArquivo}',[Uspdev\Assinatura\Http\Controllers\AssinaturaController::class,'obterArquivoAssinado'])->name('assinatura.arquivo.assinado');
+Route::get('assinatura/geraAssinatura/{idArquivo}/{email}',[Uspdev\Assinatura\Http\Controllers\AssinaturaController::class,'geraAssinatura'])->name('assinatura.geraassinatura');
 
-Route::get('arquivo/validacao/{pathArquivo?}',[Uspdev\Assinatura\Http\Controllers\ArquivosController::class,'validaDocumento']);
+Route::post('assinatura/cadastro',[Uspdev\Assinatura\Http\Controllers\ArquivosController::class,'store'])->name('assinatura.cadastro');
+Route::post('assinatura/geraAssinatura',[Uspdev\Assinatura\Http\Controllers\AssinaturaController::class,'geraAssinaturas'])->name('assinatura.geraassinaturas');
 
-Route::get('testeassinatura', function(){
-    return 'Hello World do seu Pacote!';
-});
+/*Route::get('testeemail', function(){
 
-Route::get('testeemail', function(){
-
-    $assinante = new Uspdev\Assinatura\Models\Assinantes;
-    $assinante->nome = "Fulano da Silva";
-    $assinante->email = "email@teste.com.br";
+    $assinatura = new Uspdev\Assinatura\Models\Assinatura;
+    $assinatura->nome = "Fulano da Silva";
+    $assinatura->email = "email@teste.com.br";
 
     $hash = "abCD-HIJk-LMNO-PqrsT";
     
     
-    return new Uspdev\Assinatura\Mail\NotificacaoAssinatura($assinante,$hash);
-});
+    return new Uspdev\Assinatura\Mail\NotificacaoAssinatura($assinatura,$hash);
+});*/
