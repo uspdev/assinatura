@@ -19,7 +19,7 @@ class CreateAssinaturasTable extends Migration
             $table->string('nome',100);
             $table->string('email',100);
             $table->bigInteger('codpes')->nullable();
-            $table->integer('ordem_assinatura');
+            $table->integer('ordem_assinatura')->default(0);
             $table->string('codigo_validacao',20)->nullable();
             $table->date('data_assinatura')->nullable();
             $table->tinyText('hash')->nullable();

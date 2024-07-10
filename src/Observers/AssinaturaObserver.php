@@ -17,7 +17,7 @@ class AssinaturaObserver
      */
     public function created(Assinatura $assinatura)
     {
-        $mensagem = null;
+        /*$mensagem = null;
         $collection_assinatura = Assinatura::where('arquivo_id',$assinatura->id)->get();
         if ($collection_assinatura->isEmpty()) {
             $assinatura->codigo_validacao = $this->geraCodigo();
@@ -36,6 +36,7 @@ class AssinaturaObserver
         }
         Mail::to($assinatura->email, $assinatura->nome)
             ->queue(new NotificacaoAssinatura($assinatura, $mensagem));
+        */
     }
 
     /**

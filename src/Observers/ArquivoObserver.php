@@ -4,6 +4,8 @@ namespace Uspdev\Assinatura\Observers;
 
 use Uspdev\Assinatura\Models\Arquivo;
 
+use Illuminate\Support\Facades\Storage;
+
 class ArquivoObserver
 {
     /**
@@ -12,10 +14,10 @@ class ArquivoObserver
      * @param  \App\Models\Arquivo  $arquivo
      * @return void
      */
-    public function created(Arquivo $arquivo)
+    public function creating(Arquivo $arquivo)
     {
-        $arquivo->checksum = hash_file ('CRC32', $arquivo->path_arquivo , FALSE );
-        $arquivo->save();
+        $fullpath = Storage::path($arquivo->path_arquivo);
+        $arquivo->checksum = hash_file('CRC32',$fullpath, FALSE);
     }
 
     /**

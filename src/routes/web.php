@@ -1,8 +1,11 @@
 
 <?php
-use Illuminate\Support\Facades\Route;
 
-Route::get('assinatura/arquivo/{id}',[Uspdev\Assinatura\Http\Controllers\ArquivosController::class,'show'])->name('assinatura.arquivo.original');
+use Illuminate\Support\Facades\Route;
+use Uspdev\Assinatura\Http\Controllers\ArquivoController;
+
+Route::get('assinaturas/arquivo/{arquivo}',[ArquivoController::class,'show'])->name('assinatura.arquivo.original');
+
 Route::get('assinatura/arquivoAssinado/{idArquivo}',[Uspdev\Assinatura\Http\Controllers\AssinaturaController::class,'obterArquivoAssinado'])->name('assinatura.arquivo.assinado');
 Route::get('assinatura/geraAssinatura/{idArquivo}/{email}',[Uspdev\Assinatura\Http\Controllers\AssinaturaController::class,'geraAssinatura'])->name('assinatura.geraassinatura');
 

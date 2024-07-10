@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Storage;
 
 use Uspdev\Assinatura\Models\Arquivo;
 
-class ArquivosController extends Controller
+class ArquivoController extends Controller
 {
     
     /**
@@ -46,7 +46,7 @@ class ArquivosController extends Controller
     public function show($id)
     {
         $arquivo = Arquivo::find($id);
-        return Storage::download($arquivo->path,$arquivo->original_name); 
+        return Storage::download($arquivo->path_arquivo,$arquivo->original_name); 
     }
 
     /**
