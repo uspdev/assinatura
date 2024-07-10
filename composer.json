@@ -15,6 +15,13 @@
             "Uspdev\\Assinatura\\": "src/"
         }
     },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Uspdev\\Assinatura\\AssinaturaServiceProvider"
+            ]
+        }
+    },
     "authors": [
         {
             "name": "Priscila Câmara Alves",
