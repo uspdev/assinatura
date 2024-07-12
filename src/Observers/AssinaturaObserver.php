@@ -10,21 +10,23 @@ use Uspdev\Assinatura\Mail\NotificacaoAssinatura;
 class AssinaturaObserver
 {
     /**
-     * Handle the Assinatura "created" event.
+     * Gera o código do arquivo (único) e envia e-mail de assinatura
      *
      * @param  Assinatura  $assinatura
      * @return void
      */
     public function created(Assinatura $assinatura)
     {
-        /*$mensagem = null;
-        $collection_assinatura = Assinatura::where('arquivo_id',$assinatura->id)->get();
-        if ($collection_assinatura->isEmpty()) {
+        $mensagem = null;
+        $assinaturas = Assinatura::where('arquivo_id',$assinatura->arquivo_id)
+                                ->where('id','<>',$assinatura->id)
+                                ->get();
+
+        if ($assinaturas->count() == 0) {
             $assinatura->codigo_validacao = $this->geraCodigo();
         } else {
-            $assinatura->codigo_validacao = $collection_assinatura->first()->codigo_validacao;
+            $assinatura->codigo_validacao = $assinaturas->first()->codigo_validacao;
         }
-        $assinatura->save();
 
         if (empty($assinatura->codpes)) {
             //Implementar o e-mail com URL temporária aqui
@@ -36,19 +38,21 @@ class AssinaturaObserver
         }
         Mail::to($assinatura->email, $assinatura->nome)
             ->queue(new NotificacaoAssinatura($assinatura, $mensagem));
-        */
+
+        $assinatura->save();
     }
 
     /**
-     * Handle the Assinatura "updated" event.
+     * Gera o hash que identifica o assinante
      *
      * @param Assinatura  $assinatura
      * @return void
      */
-    public function updated(Assinatura $assinatura)
+    public function updating(Assinatura $assinatura)
     {
-        $assinatura->hash = password_hash($assinatura->email,PASSWORD_ARGON2ID);
-        $assinatura->update();
+        if (empty($assinatura->hash))
+            $assinatura->hash = password_hash($assinatura->email,PASSWORD_ARGON2ID);
+        
     }
 
     /**

@@ -2,136 +2,235 @@
 
 namespace Uspdev\Assinatura\Http\Controllers;
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 
+use Barryvdh\DomPDF\Facade\Pdf;
+use Webklex\PDFMerger\Facades\PDFMergerFacade as PDFMerger;
+
+use Uspdev\Assinatura\Models\Assinatura;
 use Uspdev\Assinatura\Models\Arquivo;
 
-class ArquivoController extends Controller
+class AssinaturaController extends Controller
 {
-    
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return Integer Código do arquivo
-     */
-    public function store(Request $request)
-    {
-        
-        $rules =['arquivo'  => 'required|file|mimes:pdf'];
+        protected $email;
+        protected $documento;
 
-        $messages = ['required'     => "Favor informar o campo :attribute."
-                    ,'arquivo.file' => "O arquivo informado não é válido"
-                    ,'arquivo.mimes'=> "O arquivo deve ser do tipo PDF"
+        /**
+         * Gera formulário para mostrar assinaturas pendentes
+         * @param String email E-mail da pessoa que vai assinar o documento
+         */
+        public function assinaturaPendente($email) {
+            $assinatura = Assinatura::where('email',$email)->whereIsNull('data_assinatura')->get();
+            if ($assinatura->isEmpty()) {
+                return Redirect::back()
+                            ->withErrors(['assinatura' => 'Não há assinaturas pendentes para o e-mail '.$email])
+                            ->withInput();
+            }
+            $this->email = $email;
+            return view('assinatura::form_check_assinatura',['assinaturas' => $assinatura]);
+        }
+
+        /**
+         * Retona a última versão do arquivo assinado
+         * @param BigInteger idArquivo Id do arquivo a ser baixado
+         * 
+         * @return \Illuminate\Http\Response
+         */
+        public function obterArquivoAssinado($idArquivo) {
+            $assinatura = Assinatura::where('arquivo_id',$idArquivo)
+                                    ->whereNotNull('path_arquivo_assinado')
+                                    ->orderBy('data_assinatura','asc')
+                                    ->get();
+                                    
+            $arquivos = $assinatura->first()->arquivos();
+            return Storage::download($assinatura->first()->path_arquivo_assinado, $arquivos->first()->original_name);
+        }
+
+        /**
+         * Método que carrega formulário com lista de arquivos assinados por determinado assinante
+         * @param String email E-mail do assinante
+         * 
+         * @return \Illuminate\Http\Response
+         */
+        public function listaArquivosAssinados(String $email) {
+            $assinaturas = Assinatura::with('arquivos')
+                                    ->where('email',$email)
+                                    ->whereNotNull('data_assinatura');
+
+            return view('assinatura::form_check_assinatura',['assinaturas' => $assinaturas]);
+        }
+
+        /**
+         * Gera cada uma das assinaturas
+         * @param Int $id_arquivo Id do arquivo a ser assinado
+         * @param String $email E-mail do assinante
+         * 
+         * @return String Mensagem de retorno
+         */
+        public function geraAssinatura(Int $idArquivo, String $email) {
+            $arquivo = Arquivo::with('assinaturas')->where('id',$idArquivo)->get();
+            if ($arquivo->isEmpty()) {
+                return 'Arquivo informado não encontrado';
+            }
+            $this->documento= $arquivo->path_arquivo;
+            $this->email    = $email;
+
+            $assinatura = Assinatura::where('arquivo_id',$idArquivo)->where('email',$email)->get();
+            if ($assinatura->isEmpty()) {
+                return 'E-mail '.$email.' não encontrado como assinante deste arquivo';
+            }
+
+            $assinatura = $assinatura->first();
+            if (!empty($assinatura->data_assinatura)) {
+                return 'Documento já assinado por '.$assinatura->nome;
+            }
+
+            if ($assinatura->ordem_assinatura > 1) {
+                $assOrdem = Assinatura::where('arquivo_id',$idArquivo)
+                                    ->where('ordem_assinatura','<', $assinatura->ordem_assinatura)
+                                    ->whereNull('data_assinatura')
+                                    ->orderBy('ordem_assinatura')
+                                    ->get();
+                
+                $assOrdem->each(function ($item, $key) {
+                    return 'Documento não pode ser assinado antes de '.$item['nome'].' assinar';
+                });
+                
+            } 
+            if (!empty($assinatura->codpes) && !Auth::check()) {
+                return 'Para assinar é preciso estar logado no sistema';
+
+            } elseif (!empty($assinatura->codpes) && auth()->user()->codpes <> $assinatura->codpes) {
+                return 'O usuário precisa estar logado com o mesmo número USP do assinante registrado';
+            } else {
+                //Aqui precisa implementar o retorno do envio do e-mail com a URL temporária
+                
+                return 'Aguardando implementação de URL temporária';
+            }
+
+            $dataAssinatura = date_create(date('Y-m-d H:i:s'));
+            $txtAssinatura  = null;
+            $nomeArquivoAss = "html".$this->email."-".date_timestamp_get($dataAssinatura).".pdf";
+            $nomeArquivo    = "doc".$this->email."-".date_timestamp_get($dataAssinatura).".pdf";
+            $data           = array();
+
+            $txtAssinatura.= $this->geraTxtAssinatura($idArquivo);
+            $data = ['codigo_validacao' => $assinatura->codigo_validacao
+                    ,'nomeUsuario'      => $assinatura->nome
+                    ,'nusp'             => $assinatura->codpes
+                    ,'email'            => $assinatura->email
+                    ,'dataAss'          => date_create($dataAssinatura)->format('d/m/Y H:i:s')
                     ];
+            
+            $txtAssinatura.= view('assinatura::pdf._partials.linha-assinatura',$data);
+            $txt = view('assinatura::pdf.assinatura', $data);
 
-        $request->validate($rules,$messages);
-        $path = $request->input('arquivo')->store('assinatura/original');
+            $urlArquivoAssinado = $this->geraArquivoAssinatura($txt.$txtAssinatura,$nomeArquivoAss,$nomeArquivo);
 
-        $arquivo = new Arquivo();
-        $arquivo->path_arquivo = $path;
-        $arquivo->original_name = $request->input('arquivo')->getClientOriginalName();
-        $arquivo->save();
-        
-        return $arquivo->id;
-    }
+            $assinatura->path_arquivo_assinado = $urlArquivoAssinado;
+            $assinatura->dataAssinatura        = $dataAssinatura;
+            $assinatura->update();
 
-    /**
-     * Retorna o conteúdo do arquivo.
-     *
-     * @param  Integer $id Id do arquivo
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
-    {
-        $arquivo = Arquivo::find($id);
-        return Storage::download($arquivo->path_arquivo,$arquivo->original_name); 
-    }
+            return "Documento(s) assinado(s) por ".$assinatura->nome;
+        }
 
-    /**
-     * Valida arquivo utilizando webservice REST ValidaDoc
-     * @param String path Caminho do arquivo a ser validado
-     * @return stdClass
-     */
-    static function validaDocumento(String $path, $token = null) {
-        
-        $ch = curl_init();
+        /**
+        * Gera a assinaturas em lote através de formulário POST
+        * @param \Illuminate\Http\Request $request
+        *
+        * @return \Illuminate\Http\Response
+        * 
+        */
+        public function geraAssinaturas(Request $request) {
 
-        curl_setopt_array($ch, [
+            $rule = ['arq_assinatura' => 'required' //este campo pode ser numérico ou array
+                    ,'email' => 'required|email'];
+            $msg = ['require' => 'Campo :attribute precisa ser informado'];
 
-            CURLOPT_URL => 'https://uspdigital.usp.br/wsusp/validadoc/',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => 'UTF-8',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
+            $request->validate($rule, $msg);
 
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $token,
-                'X-USERNAME: '.env('ASSINATURA_USERNAME'),
-                'X-PASSWORD: '.env('ASSINATURA_PASSWORD')
-            ],
+            $arr_arquivos = array();
 
-            CURLOPT_POSTFIELDS => [
-                                    'documentopdf' => new \CURLFILE($path),
-                                    'nomesistemaorigem' => 'Sistema de Estágios FCF'
-                                  ],
+            if (!is_array($request->input('arq_assinatura'))) {
+                if (is_numeric($request->input('arq_assinatura')) && $request->input('arq_assinatura') > 0) {
+                    $arr_arquivos = [$request->input('arq_assinatura')];
+                } else {
+                    return Redirect::back()
+                                ->withErrors(['assinatura' => '1.Arquivo não informado'])
+                                ->withInput();
+                }
+            } else {
+                $arr_arquivos = $request->input('arq_assinatura');
+            }
 
-            //CURLOPT_PROTOCOLS => CURLPROTO_HTTPS
-        ]);
+            if (count($arr_arquivos) == 0) {
+                return Redirect::back()
+                                ->withErrors(['assinatura' => '2.Arquivo não informado'])
+                                ->withInput();
+            }
 
-        $resultado = curl_exec($ch);
-        curl_close($ch);
+            foreach ($arr_arquivos as $idArquivo) { 
+                $mensagem = $this->geraAssinatura($idArquivo,$request->input('email'));
+            }
+            //return redirect()->action([UserController::class, 'index']);
+            return Redirect::back()
+                            ->with(['assinatura' => $mensagem]);
+        } 
 
-        return json_decode($resultado);
-    }
+        /**
+         * Método para gerar texto com grupo de assinaturas
+         * @param String idGrupo - código do grupo de assinaturas
+         * @return String
+         */
+        private function geraTxtAssinatura($idArquivo) {
+            $txtAssinatura = null;
 
-    /**
-     * Método para verificar se um documento é válido através de WS ValidaDoc
-     * @param String cod_validacao pode ser o código de validação ou checksum do documento
-     * @return stdClass
-     */
-    static function verificaDocumento(String $cod_validacao) {
-        $ch = curl_init();
+            $documento = Assinatura::where('arquivo_id',$idArquivo)
+                                    ->whereNotNull('data_assinatura')
+                                    ->orderBy('ordem_assinatura')
+                                    ->orderBy('data_assinatura','desc')
+                                    ->get();
 
-        curl_setopt_array($ch, [
+            foreach ($documento as $doc) {
+                    $txtAssinatura.= view('assinatura::pdf._partials.linha-assinatura', 
+                                            ['codigo_validacao' => $doc->codigoValidacao
+                                            ,'nomeUsuario'      => $doc->nome
+                                            ,'nusp'             => $doc->codpes
+                                            ,'email'            => $doc->email
+                                            ,'dataAss'          => date_create($doc->dataAssinatura)->format('d/m/Y H:i:s')
+                                            ]);
+            }
 
-            CURLOPT_URL => 'https://uspdigital.usp.br/wsusp/validadoc/verificar/'.$cod_validacao,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => 'UTF-8',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
+            return $txtAssinatura;
+        }
 
-            CURLOPT_HTTPHEADER => [
-                'X-USERNAME: '.env('ASSINATURA_USERNAME'),
-                'X-PASSWORD: '.env('ASSINATURA_PASSWORD')
-            ],
+        /**
+         * Gera o arquivo assinado
+         * @param String htmlAssinatura contém HTML da linha da assinatura
+         * @param String nmArquivo nome do arquivo intermediário
+         * @param String nomeDocAssinado nome do arquivo do documento assinado
+         * 
+         * @return String path do arquivo assinado.
+         */
+        private function geraArquivoAssinatura($htmlAssinatura,$nmArquivo,$nomeDocAssinado) {
+            $pdf = Pdf::loadHTML($htmlAssinatura);                             
+            $pdf->save("upload/assinaturas/html/".$nmArquivo);
 
-            //CURLOPT_PROTOCOLS => CURLPROTO_HTTPS
-        ]);
+            $oMerger = PDFMerger::init();
 
-        $resultado = curl_exec($ch);
-        curl_close($ch);
+            $oMerger->addPDF($this->documento,'all');
+            $oMerger->addPDF("upload/assinaturas/html/".$nmArquivo, 'all');
 
-        //Storage::disk('local')->put('assinatura/original/');
+            $oMerger->merge();
+            $oMerger->save("upload/assinaturas/docAssinado/".$nomeDocAssinado);
 
-        return json_decode($resultado);
-    }
+            File::delete("upload/assinaturas/html/".$nmArquivo);
 
-    /**
-     * Método para uso em Rotas
-     * @param String path Caminho do arquivo a ser validado
-     * @return stdClass
-     */
-    public function validaDoc($path, $token) {
-        return ArquivosController::validaDocumento($path, $token);
-    }
-
-
+            //return env("APP_URL")."/upload/assinaturas/docAssinado/".$nomeDocAssinado;
+            return "upload/assinaturas/docAssinado/".$nomeDocAssinado;
+        }
 }

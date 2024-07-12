@@ -3,14 +3,17 @@
 
 use Illuminate\Support\Facades\Route;
 use Uspdev\Assinatura\Http\Controllers\ArquivoController;
+use Uspdev\Assinatura\Http\Controllers\AssinaturaController;
 
-Route::get('assinaturas/arquivo/{arquivo}',[ArquivoController::class,'show'])->name('assinatura.arquivo.original');
+Route::prefix('assinaturas')->group(function () {
+    Route::get('arquivo/{arquivo}',[ArquivoController::class,'show'])->name('assinatura.arquivo.original');
+    Route::get('arquivoAssinado/{idArquivo}',[AssinaturaController::class,'obterArquivoAssinado'])->name('assinatura.arquivo.assinado');
+    
+    Route::post('cadastro',[ArquivoController::class,'store'])->name('assinatura.cadastro');
+    Route::post('geraAssinatura',[AssinaturaController::class,'geraAssinaturas'])->name('assinatura.geraassinaturas');
 
-Route::get('assinatura/arquivoAssinado/{idArquivo}',[Uspdev\Assinatura\Http\Controllers\AssinaturaController::class,'obterArquivoAssinado'])->name('assinatura.arquivo.assinado');
-Route::get('assinatura/geraAssinatura/{idArquivo}/{email}',[Uspdev\Assinatura\Http\Controllers\AssinaturaController::class,'geraAssinatura'])->name('assinatura.geraassinatura');
-
-Route::post('assinatura/cadastro',[Uspdev\Assinatura\Http\Controllers\ArquivosController::class,'store'])->name('assinatura.cadastro');
-Route::post('assinatura/geraAssinatura',[Uspdev\Assinatura\Http\Controllers\AssinaturaController::class,'geraAssinaturas'])->name('assinatura.geraassinaturas');
+    Route::get('pendentes/{email}',[AssinaturaController::class,'assinaturaPendente'])->name('assinatura.pendente');
+});
 
 /*Route::get('testeemail', function(){
 
