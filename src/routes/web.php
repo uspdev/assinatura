@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 use Uspdev\Assinatura\Http\Controllers\ArquivoController;
 use Uspdev\Assinatura\Http\Controllers\AssinaturaController;
 
-Route::prefix('assinaturas')->group(function () {
+Route::prefix('assinatura')->group(function () {
     Route::get('arquivo/{arquivo}',[ArquivoController::class,'show'])->name('assinatura.arquivo.original');
     Route::get('arquivoAssinado/{idArquivo}',[AssinaturaController::class,'obterArquivoAssinado'])->name('assinatura.arquivo.assinado');
     

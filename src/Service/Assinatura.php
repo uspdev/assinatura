@@ -52,7 +52,7 @@ class Assinatura {
         return Arquivo::with('assinaturas')->where('id',$idArquivo)->first();
     }
 
-    public static function geraAssinatura(Int $idArquivo, String $email) 
+    public static function geraAssinatura(Int $idArquivo, String $email, String $codigo_validacao) 
     {
         $arquivo = Arquivo::with('assinaturas')->where('id',$idArquivo)->get();
         if ($arquivo->isEmpty()) {
@@ -65,6 +65,10 @@ class Assinatura {
         }
 
         $assinatura = $assinatura->first();
+        if (!empty($codigo_validacao) && $codigo_validacao != $assinatura->arquivos->codigo_validacao) {
+            return "Código de validação inválido, clique no link e tente novamente";
+        }
+
         if (!empty($assinatura->data_assinatura)) {
             return 'Documento já assinado por '.$assinatura->nome;
         }
@@ -85,10 +89,8 @@ class Assinatura {
             return 'Para assinar é preciso estar logado no sistema';
         } elseif (!empty($assinatura->codpes) && auth()->user()->codpes <> $assinatura->codpes) {
             return 'O usuário precisa estar logado com o mesmo número USP do assinante registrado';
-        } else {
-            //Aqui precisa implementar o retorno do envio do e-mail com a URL temporária
-            
-            return 'Aguardando implementação de URL temporária';
+        } elseif ($email != $assinatura->email) {
+            return 'O e-mail informado deve ser o mesmo do assinante registrado';
         }
 
         $dataAssinatura = new \DateTime('now');
@@ -114,7 +116,7 @@ class Assinatura {
         $assinatura->dataAssinatura        = $dataAssinatura;
         $assinatura->update();
 
-        return "Documento(s) assinado(s) por ".$assinatura->first()->nome;
+        return "Documento(s) assinado(s) por ".$assinatura->nome;
     }
 
     /**
@@ -155,20 +157,20 @@ class Assinatura {
      */
     private function geraArquivoAssinatura($pathArquivo,$htmlAssinatura,$nmArquivo,$nomeDocAssinado) {
         $pdf = Pdf::loadHTML($htmlAssinatura);                             
-        $pdf->save("upload/assinaturas/html/".$nmArquivo);
+        $pdf->save(config('assinatura.localArquivo')."/"."html/".$nmArquivo);
 
         $oMerger = PDFMerger::init();
 
         $oMerger->addPDF($pathArquivo,'all');
-        $oMerger->addPDF("upload/assinaturas/html/".$nmArquivo, 'all');
+        $oMerger->addPDF(config('assinatura.localArquivo')."/"."html/".$nmArquivo, 'all');
 
         $oMerger->merge();
-        $oMerger->save("upload/assinaturas/docAssinado/".$nomeDocAssinado);
+        $oMerger->save(config('assinatura.localArquivo')."/"."docAssinado/".$nomeDocAssinado);
 
-        Storage::delete("upload/assinaturas/html/".$nmArquivo);
+        Storage::delete(config('assinatura.localArquivo')."/"."html/".$nmArquivo);
 
         //return env("APP_URL")."/upload/assinaturas/docAssinado/".$nomeDocAssinado;
-        return "upload/assinaturas/docAssinado/".$nomeDocAssinado;
+        return config('assinatura.localArquivo')."/"."docAssinado/".$nomeDocAssinado;
     }
 
 }

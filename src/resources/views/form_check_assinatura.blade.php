@@ -1,6 +1,6 @@
 @auth
 
-<form id="form_check_assinaturas" action="" method="POST">
+<form id="form_check_assinaturas" action="assinatura/geraAssinatura" method="POST">
     @csrf
     <h1>Assinaturas Pendentes</h1>
     <h2>Selecione os documentos que quer assinar</h2>

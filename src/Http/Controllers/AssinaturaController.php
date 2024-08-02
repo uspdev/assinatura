@@ -66,69 +66,99 @@ class AssinaturaController extends Controller
          * 
          * @return String
          */
-        public function geraAssinatura(Int $idArquivo, String $email) {
-            $arquivo = Arquivo::with('assinaturas')->where('id',$idArquivo)->get();
-            if ($arquivo->isEmpty()) {
-                return 'Arquivo informado não encontrado';
-            }
-            $this->documento= $arquivo->path_arquivo;
-            $this->email    = $email;
+        public function geraAssinatura(Request $request) {
+            $regra = [
+                'arq_assinatura' => 'required|array',
+                'codigo_validacao1' => 'required|max:4',
+                'codigo_validacao2' => 'required|max:4',
+                'codigo_validacao3' => 'required|max:4',
+                'codigo_validacao4' => 'required|max:4'
+            ];
 
-            $assinatura = Assinatura::where('arquivo_id',$idArquivo)->where('email',$email)->get();
-            if ($assinatura->isEmpty()) {
-                return 'E-mail '.$email.' não encontrado como assinante deste arquivo';
-            }
+            $msg = [
+                'required' => 'O campo :attribute deve ser informado',
+                'max' => 'O campo :attribute deve conter até :max caracteres'
+            ];
 
-            if (!empty($assinatura->first()->data_assinatura)) {
-                return 'Documento já assinado por '.$assinatura->first()->nome;
-            }
+            $request->validate($regra,$msg);
+            $msg_retorno = null;
 
-            if ($assinatura->first()->ordem_assinatura > 1) {
-                $assOrdem = Assinatura::where('arquivo_id',$idArquivo)
-                                        ->where('ordem_assinatura','<>', $assinatura->first()->ordem_assinatura)
-                                        ->orderBy('ordem_assinatura')
-                                        ->get();
+            foreach($request->arq_assinatura as $idArquivo) {
                 
-                $assOrdem->each(function ($item, $key) {
-                    if (empty($item['data_assinatura'])) {
-                        return 'Documento não pode ser assinado antes de '.$item['nome'].' assinar';
-                    }
-                });
-                
-            } 
-            if (!empty($assinatura->first()->codpes) && !Auth::check()) {
-                return 'Para assinar é preciso estar logado no sistema';
+                $arquivo = Arquivo::with('assinaturas')->where('id',$idArquivo)->get();
+                if ($arquivo->isEmpty()) {
+                    $msg_retorno.='Arquivo informado não encontrado /n';
+                    continue;
+                }
+                $this->documento= $arquivo->path_arquivo;
+                $this->email    = $request->email;
 
-            } elseif (!empty($assinatura->first()->codpes) && auth()->user()->codpes <> $assinatura->first()->codpes) {
-                return 'O usuário precisa estar logado com o mesmo número USP do assinante registrado';
-            } else {
-                //Aqui precisa implementar o retorno do envio do e-mail com a URL temporária
-                
-                return 'Aguardando implementação de URL temporária';
+                $assinatura = Assinatura::where('arquivo_id',$idArquivo)->where('email',$request->email)->get();
+                if ($assinatura->isEmpty()) {
+                    $msg_retorno.= 'E-mail '.$request->email.' não encontrado como assinante do arquivo '.$arquivo->path_arquivo;
+                    continue;
+                }
+
+                $codigo_validacao = $request->codigo_validacao1."-".$request->codigo_validacao2."-".$request->codigo_validacao3."-".$request->codigo_validacao4;
+                if ($codigo_validacao != $assinatura->first()->arquivos->codigo_validacao) {
+                    $msg_retorno.= "Reveja o código de validação do arquivo ".$arquivo->path_arquivo.", clique no link e tente novamente /n";
+                    continue;
+                }
+
+                if (!empty($assinatura->first()->data_assinatura)) {
+                    $msg_retorno.= 'Documento '.$arquivo->path_arquivo.' já assinado por '.$assinatura->first()->nome.' /n';
+                    continue;
+                }
+
+                if ($assinatura->first()->ordem_assinatura > 1) {
+                    $assOrdem = Assinatura::where('arquivo_id',$idArquivo)
+                                            ->where('ordem_assinatura','<>', $assinatura->first()->ordem_assinatura)
+                                            ->orderBy('ordem_assinatura')
+                                            ->get();
+                    
+                    $assOrdem->each(function ($item, $key) {
+                        if (empty($item['data_assinatura'])) {
+                            return 'Documento não pode ser assinado antes de '.$item['nome'].' assinar';
+                        }
+                    });
+                    
+                } 
+                if (!empty($assinatura->first()->codpes) && !Auth::check()) {
+                    $msg_retorno.= 'Para assinar o documento '.$arquivo->path_arquivo.' é preciso estar logado no sistema /n';
+                    continue;
+                } elseif (!empty($assinatura->first()->codpes) && auth()->user()->codpes <> $assinatura->first()->codpes) {
+                    $msg_retorno.= 'Para assinar o documento '.$arquivo->path_arquivo.' o usuário precisa estar logado com o mesmo número USP do assinante registrado /n';
+                    continue;
+                } elseif ($request->email != $assinatura->first()->email) {
+                    $msg_retorno.= 'Para assinar o documento '.$arquivo->path_arquivo.' o e-mail informado deve ser o mesmo do assinante registrado /n';
+                    continue;
+                } 
+
+                $dataAssinatura = date_create(date('Y-m-d H:i:s'));
+                $txtAssinatura  = null;
+                $nomeArquivoAss = "html".$this->email."-".date_timestamp_get($dataAssinatura).".pdf";
+                $nomeArquivo    = "doc".$this->email."-".date_timestamp_get($dataAssinatura).".pdf";
+                $mensagem       = null;
+                $data           = array();
+
+                $txtAssinatura.= $this->geraTxtAssinatura($idArquivo);
+                $data = ['codigo_validacao' => $assinatura->first()->codigo_validacao
+                        ,'nomeUsuario'      => $assinatura->first()->nome
+                        ,'nusp'             => $assinatura->first()->codpes
+                        ,'email'            => $assinatura->first()->email
+                        ,'dataAss'          => date_create($dataAssinatura)->format('d/m/Y H:i:s')
+                        ];
+                $txtAssinatura.= view('assinatura::pdf._partials.linha-assinatura',$data);
+                $txt = view('assinatura::pdf.assinatura', $data);
+
+                $urlArquivoAssinado = $this->geraArquivoAssinatura($txt.$txtAssinatura,$nomeArquivoAss,$nomeArquivo);
+
+                $assinatura->first()->path_arquivo_assinado = $urlArquivoAssinado;
+                $assinatura->first()->dataAssinatura        = $dataAssinatura;
+                $assinatura->first()->update();
             }
 
-            $dataAssinatura = date_create(date('Y-m-d H:i:s'));
-            $txtAssinatura  = null;
-            $nomeArquivoAss = "html".$this->email."-".date_timestamp_get($dataAssinatura).".pdf";
-            $nomeArquivo    = "doc".$this->email."-".date_timestamp_get($dataAssinatura).".pdf";
-            $mensagem       = null;
-            $data           = array();
-
-            $txtAssinatura.= $this->geraTxtAssinatura($idArquivo);
-            $data = ['codigo_validacao' => $assinatura->first()->codigo_validacao
-                    ,'nomeUsuario'      => $assinatura->first()->nome
-                    ,'nusp'             => $assinatura->first()->codpes
-                    ,'email'            => $assinatura->first()->email
-                    ,'dataAss'          => date_create($dataAssinatura)->format('d/m/Y H:i:s')
-                    ];
-            $txtAssinatura.= view('assinatura::pdf._partials.linha-assinatura',$data);
-            $txt = view('assinatura::pdf.assinatura', $data);
-
-            $urlArquivoAssinado = $this->geraArquivoAssinatura($txt.$txtAssinatura,$nomeArquivoAss,$nomeArquivo);
-
-            $assinatura->first()->path_arquivo_assinado = $urlArquivoAssinado;
-            $assinatura->first()->dataAssinatura        = $dataAssinatura;
-            $assinatura->first()->update();
+            
 
             return "Documento(s) assinado(s) por ".$assinatura->first()->nome;
         }
@@ -213,19 +243,19 @@ class AssinaturaController extends Controller
          */
         private function geraArquivoAssinatura($htmlAssinatura,$nmArquivo,$nomeDocAssinado) {
             $pdf = Pdf::loadHTML($htmlAssinatura);                             
-            $pdf->save("upload/assinaturas/html/".$nmArquivo);
+            $pdf->save(config('assinatura.localArquivo')."/"."html/".$nmArquivo);
 
             $oMerger = PDFMerger::init();
 
             $oMerger->addPDF($this->documento,'all');
-            $oMerger->addPDF("upload/assinaturas/html/".$nmArquivo, 'all');
+            $oMerger->addPDF(config('assinatura.localArquivo')."/"."html/".$nmArquivo, 'all');
 
             $oMerger->merge();
-            $oMerger->save("upload/assinaturas/docAssinado/".$nomeDocAssinado);
+            $oMerger->save(config('assinatura.localArquivo')."/"."docAssinado/".$nomeDocAssinado);
 
-            File::delete("upload/assinaturas/html/".$nmArquivo);
+            File::delete(config('assinatura.localArquivo')."/"."html/".$nmArquivo);
 
             //return env("APP_URL")."/upload/assinaturas/docAssinado/".$nomeDocAssinado;
-            return "upload/assinaturas/docAssinado/".$nomeDocAssinado;
+            return config('assinatura.localArquivo')."/"."docAssinado/".$nomeDocAssinado;
         }
 }
