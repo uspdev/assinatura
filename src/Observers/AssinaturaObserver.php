@@ -31,10 +31,14 @@ class AssinaturaObserver
         if (empty($assinatura->codpes)) {
             //Implementar o e-mail com URL temporária aqui
             //Aqui precisa implementar a URL temporária
-            $mensagem = "Sua assinatura precisa ser confirmada através do link <a href='".env('APP_URL')."'>LINK</a>";
+            $mensagem = "Entre no sistema para validar a assinatura. Código de validação do arquivo: *".$assinatura->codigo_validacao."*          
+            ";
+            $mensagem.= "Sua assinatura precisa ser confirmada através do link <a href='".env('APP_URL')."'>LINK</a>";
             
         } else {
-            $mensagem = "Existe um novo arquivo para assinar, entre no sistema ".env("APP_NAME");
+            $mensagem = "Entre no sistema para validar a assinatura. Código de validação do arquivo: *".$assinatura->codigo_validacao."*          
+            ";
+            $mensagem.= "Existe um novo arquivo para assinar, entre no sistema ".env("APP_NAME");
         }
         Mail::to($assinatura->email, $assinatura->nome)
             ->queue(new NotificacaoAssinatura($assinatura, $mensagem));

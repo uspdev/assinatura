@@ -24,11 +24,10 @@ class AssinaturaController extends Controller
          * @param String email E-mail da pessoa que vai assinar o documento
          */
         public function formCheckAssinatura($email) {
-            $assinatura = Assinatura::where('email',$email)->whereIsNull('data_assinatura')->get();
+            $assinatura = Assinatura::where('email',$email)->whereNull('data_assinatura')->get();
             if ($assinatura->isEmpty()) {
                 return Redirect::back()
-                            ->withErrors(['assinatura' => 'Não há assinaturas pendentes para o e-mail '.$email])
-                            ->withInput();
+                            ->withErrors(['assinatura' => 'Não há assinaturas pendentes para o e-mail '.$email]);
             }
             $this->email = $email;
             return view('assinatura::form_check_assinatura',['assinaturas' => $assinatura]);

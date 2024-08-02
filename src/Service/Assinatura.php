@@ -45,6 +45,11 @@ class Assinatura {
 
             $assinatura_model->save();
         }
+        return $arquivo->id;
+    }
+
+    public static function arquivoInfo(Int $idArquivo) {
+        return Arquivo::with('assinaturas')->where('id',$idArquivo)->first();
     }
 
     public static function geraAssinatura(Int $idArquivo, String $email) 

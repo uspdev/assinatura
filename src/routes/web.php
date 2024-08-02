@@ -12,7 +12,7 @@ Route::prefix('assinaturas')->group(function () {
     Route::post('cadastro',[ArquivoController::class,'store'])->name('assinatura.cadastro');
     Route::post('geraAssinatura',[AssinaturaController::class,'geraAssinaturas'])->name('assinatura.geraassinaturas');
 
-    Route::get('pendentes/{email}',[AssinaturaController::class,'assinaturaPendente'])->name('assinatura.pendente');
+    Route::get('pendentes/{email}',[AssinaturaController::class,'formCheckAssinatura'])->name('assinatura.pendente');
 });
 
 /*Route::get('testeemail', function(){
