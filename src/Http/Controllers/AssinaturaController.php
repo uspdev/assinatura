@@ -30,7 +30,7 @@ class AssinaturaController extends Controller
                             ->withErrors(['assinatura' => 'Não há assinaturas pendentes para o e-mail '.$email]);
             }
             $this->email = $email;
-            return view('assinatura::form_check_assinatura',['assinaturas' => $assinatura]);
+            return view('assinatura::form_check_assinatura',['assinaturas' => $assinatura, 'email' => $email]);
         }
 
         /**
@@ -113,16 +113,15 @@ class AssinaturaController extends Controller
                 if ($assinatura->first()->ordem_assinatura > 1) {
                     $assOrdem = Assinatura::where('arquivo_id',$idArquivo)
                                             ->where('ordem_assinatura','<>', $assinatura->first()->ordem_assinatura)
+                                            ->whereNull('data_assinatura')
                                             ->orderBy('ordem_assinatura')
                                             ->get();
-                    
-                    $assOrdem->each(function ($item, $key) {
-                        if (empty($item['data_assinatura'])) {
-                            return 'Documento não pode ser assinado antes de '.$item['nome'].' assinar';
-                        }
-                    });
-                    
+
+                    if ($assOrdem->isNotEmpty() && $assOrdem->first()->ordem_assinatura < $assinatura->first()->ordem_assinatura) {
+                        $msg_retorno.= 'Documento não pode ser assinado antes de '.$assOrdem->first()->nome.' assinar';
+                    }                    
                 } 
+                
                 if (!empty($assinatura->first()->codpes) && !Auth::check()) {
                     $msg_retorno.= 'Para assinar o documento '.$arquivo->path_arquivo.' é preciso estar logado no sistema /n';
                     continue;

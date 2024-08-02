@@ -19,7 +19,7 @@ class Assinatura extends Model
     public function arquivos()
     {
         //return $this->belongsTo(Tenant::class'foreign_key', 'owner_key');
-        return $this->belongsTo(Arquivo::class);
+        return $this->belongsTo(Arquivo::class,'arquivo_id','id');
     }
 
 }

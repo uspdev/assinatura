@@ -75,14 +75,14 @@ class Assinatura {
 
         if ($assinatura->ordem_assinatura > 1) {
             $assOrdem = AssinaturaModel::where('arquivo_id',$idArquivo)
-                                        ->where('ordem_assinatura','<', $assinatura->ordem_assinatura)
+                                        ->where('ordem_assinatura','<>', $assinatura->first()->ordem_assinatura)
                                         ->whereNull('data_assinatura')
                                         ->orderBy('ordem_assinatura')
                                         ->get();
-                
-            $assOrdem->each(function ($item, $key) {
-                return 'Documento não pode ser assinado antes de '.$item['nome'].' assinar';
-            });
+
+            if ($assOrdem->isNotEmpty() && $assOrdem->first()->ordem_assinatura < $assinatura->first()->ordem_assinatura) {
+                return 'Documento não pode ser assinado antes de '.$assOrdem->first()->nome.' assinar';
+            }
         } 
 
         if (!empty($assinatura->codpes) && auth()->check()) {

@@ -16,6 +16,6 @@ class Arquivo extends Model
     public function assinaturas()
     {
         //return $this->hasMany(Rent::class, "foreign_key", "local_key");
-        return $this->hasMany(Assinatura::class);
+        return $this->hasMany(Assinatura::class,'arquivo_id','id');
     }
 }
