@@ -1,8 +1,17 @@
 ### O que a aplicação que usa a biblioteca vai fazer?
 
+##Para instalar o pacote basta rodar
+
+``` composer required uspdev/assinatura
+
+
+
+
+
 1 - Guardar o arquivo original na pasta storage da aplicação, suponha que o arquivo venha de um formulaŕio *$request->file('file')* exemplo:
 
     $path_arquivo = $request->file('file')->store('SUA-PASTA-NO-STORAGE');
+
 
 2 - Colocar metadados do arquivo original na tabela *arquivos* da biblioteca assinaturas, exemplo:
 

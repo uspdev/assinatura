@@ -52,12 +52,24 @@ class Assinatura {
         return Arquivo::with('assinaturas')->where('id',$idArquivo)->first();
     }
 
+    /**
+     * Retona a URL da última versão do arquivo assinado
+     * @param BigInteger idArquivo Id do arquivo a ser baixado
+     * 
+     * @return \Illuminate\Http\Response
+     */
+    public static function obterUrlArquivoAssinado($idArquivo) {
+        $assinatura = AssinaturaModel::where('arquivo_id',$idArquivo)->whereNotNull('path_arquivo_assinado')->orderBy('data_assinatura','desc')->get();
+        return Storage::url($assinatura->first()->path_arquivo_assinado, $assinatura->first()->arquivos->first()->original_name);
+    }
+
     public static function geraAssinatura(Int $idArquivo, String $email, String $codigo_validacao) 
     {
         $arquivo = Arquivo::with('assinaturas')->where('id',$idArquivo)->get();
         if ($arquivo->isEmpty()) {
             return 'Arquivo informado não encontrado';
         }
+        $arquivo = $arquivo->first();
 
         $assinatura = AssinaturaModel::where('arquivo_id',$idArquivo)->where('email',$email)->get();
         if ($assinatura->isEmpty()) {
@@ -74,6 +86,7 @@ class Assinatura {
         }
 
         if ($assinatura->ordem_assinatura > 1) {
+            
             $assOrdem = AssinaturaModel::where('arquivo_id',$idArquivo)
                                         ->where('ordem_assinatura','<>', $assinatura->first()->ordem_assinatura)
                                         ->whereNull('data_assinatura')
@@ -113,8 +126,10 @@ class Assinatura {
         $urlArquivoAssinado = Assinatura::geraArquivoAssinatura($arquivo->path_arquivo,$txt.$txtAssinatura,$nomeArquivoAss,$nomeArquivo);
 
         $assinatura->path_arquivo_assinado = $urlArquivoAssinado;
-        $assinatura->dataAssinatura        = $dataAssinatura;
+        $assinatura->data_assinatura       = $dataAssinatura;
         $assinatura->update();
+
+        Storage::download(Storage::path($urlArquivoAssinado));
 
         return "Documento(s) assinado(s) por ".$assinatura->nome;
     }
@@ -157,17 +172,17 @@ class Assinatura {
      */
     private function geraArquivoAssinatura($pathArquivo,$htmlAssinatura,$nmArquivo,$nomeDocAssinado) {
         $pdf = Pdf::loadHTML($htmlAssinatura);                             
-        $pdf->save(config('assinatura.localArquivo')."/"."html/".$nmArquivo);
+        $pdf->save(Storage::path(config('assinatura.localArquivo')."/"."html/".$nmArquivo));
 
         $oMerger = PDFMerger::init();
 
         $oMerger->addPDF($pathArquivo,'all');
-        $oMerger->addPDF(config('assinatura.localArquivo')."/"."html/".$nmArquivo, 'all');
+        $oMerger->addPDF(Storage::path(config('assinatura.localArquivo')."/"."html/".$nmArquivo, 'all'));
 
         $oMerger->merge();
-        $oMerger->save(config('assinatura.localArquivo')."/"."docAssinado/".$nomeDocAssinado);
+        $oMerger->save(Storage::path(config('assinatura.localArquivo')."/"."docAssinado/".$nomeDocAssinado));
 
-        Storage::delete(config('assinatura.localArquivo')."/"."html/".$nmArquivo);
+        Storage::delete(Storage::path(config('assinatura.localArquivo')."/"."html/".$nmArquivo));
 
         //return env("APP_URL")."/upload/assinaturas/docAssinado/".$nomeDocAssinado;
         return config('assinatura.localArquivo')."/"."docAssinado/".$nomeDocAssinado;
