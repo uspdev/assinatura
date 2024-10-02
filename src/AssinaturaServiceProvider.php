@@ -18,7 +18,7 @@ class AssinaturaServiceProvider extends ServiceProvider {
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');
 
         // investigar
-        $this->loadRoutesFrom(__DIR__.'/routes/web.php');
+        $this->loadRoutesFrom(__DIR__.'/routes/assinatura/web.php');
         //$this->loadRoutesFrom(__DIR__ . '/../routes/api.php')->prefix('api');
 
         Assinatura::observe(AssinaturaObserver::class);
